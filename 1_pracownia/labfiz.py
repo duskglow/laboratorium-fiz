@@ -142,10 +142,11 @@ def whist(dane,przedz=0,krok=1,norm=0,sig=0,sr=0,dop=0,wys=0,osX=0,osY=0,tyt=0,f
 		else: # Albo wszystkie beda mialy takie same
 			self.hist(dane[i],przedz,krok,norm,sig,sr,dop,wys,osX,osY,tyt,fs)
 			
-def dop_lin(x,y,nx=0,ny=0,osX=0,osY=0,podp=0,r=3,ts='large'):
+def dop_lin(x,y,xp=1,yp=1,nx=0,ny=0,osX=0,osY=0,podp=0,r=3,fs='large'):
 	'''Rysuje dane i dopasowuje do nich linie prosta. Wymaga py.show()
 	x - wartosci x, tuple/list/array - i tak zmieni sie na liste
 	y - wartosci y, tuple/list/array
+	xp,yp = jaka czescia jednostki ukladu SI jest wartosc
 	nx,ny - niepewnosci x,y (tuple/list/array o dlugosci rownej powyzszym)
 	osX - podpis osi X, str
 	osY - podpis osi Y, str
@@ -166,20 +167,22 @@ def dop_lin(x,y,nx=0,ny=0,osX=0,osY=0,podp=0,r=3,ts='large'):
 		if podp in [2,3]: xP = xlim[1]-0.45*(xlim[1]-xlim[0])
 		if podp in [1,2]: yP = ylim[1]-0.1*(ylim[1]-ylim[0])
 		if podp in [3,4]: yP = ylim[0]+0.1*(ylim[1]-ylim[0])
+		AxB = np.polyfit(x*xp,y*yp,1) # dopasowuje parametry prostej (wielomianu zerowego stopnia)
 		wektstr = 'A + Bx = '+str(round(AxB[1],r))+' + '+str(round(AxB[0],r))+'x' # tworzy podpis
 		py.text(xP,yP,wektstr,family='serif',size=ts) # i plotuje go
 	py.xticks(size=ts) # rozmiar cyfr
 	py.yticks(size=ts)
 	py.grid(True) # siatka
 			
-def niep_prad(wartosci,typ,p=1,r=3):
+def niep_prad(wartosci,typ,p=1,r=3,k=True):
 	'''Oblicza niepewnosci multimetrow dla kazdej z wartosci z listy,
 	domyslne jest podanie wartosci w V/A/Ohm-ach.
 	typ - str, jeden z IBRY,UBRY,OBRY,ICHY,UCHY,OCHY (case sensitive)
 	wartosci - int,float,lista,krotka lub array
 	p - przez jaka liczbe nalezy pomnozyc wartosc, aby otrzymac jednostke przykladowa?
 		przyklad: mA = 0.001 A
-	r - do ilu cyfr po przecinku zaokraglic?'''
+	r - do ilu cyfr po przecinku zaokraglic
+	k - niepewnosc koncowa - dzielic przez pierwiastek z 3?'''
 	if not typ in ['IBRY','UBRY','OBRY','ICHY','UCHY','OCHY']: # jezeli zly typ, wywalamy
 		raise Exception('Zle zdefiniowany multimetr i typ pomiaru')
 	if type(wartosci) in [int,float]: wartosci = (wartosci,) # wartosci maja byc lista, tak bedzie latwiej
@@ -221,7 +224,7 @@ def niep_prad(wartosci,typ,p=1,r=3):
 	for i in range(len(wartosci)): # dla kazdej z wartosci
 		n = 0 
 		while wartosci[i]*p > zakresy[n][0]: n += 1 # dopoki wartosc jest wieksza od zakresu ze slownika, ma sprawdzac kolejne zakresy
-		niepewnosci[i] = (round((wartosci[i]*p*0.01*zakresy[n][1] + zakresy[n][2])/p,r)) #zaokragla wartosc razy procent i dodaje stala 
+		niepewnosci[i] = (round((wartosci[i]*p*0.01*zakresy[n][1] + zakresy[n][2])/(np.sqrt(3)**k)/p,r)) #zaokragla wartosc razy procent i dodaje stala 
 	return niepewnosci # zwraca wynik w takich samych jednostkach, jak poczatkowe
 
 if __name__ == '__main__':
