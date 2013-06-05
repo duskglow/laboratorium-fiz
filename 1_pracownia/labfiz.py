@@ -150,17 +150,17 @@ def whist(dane,przedz=0,krok=1,norm=0,sig=0,sr=0,dop=0,wys=0,osX=0,osY=0,tyt=0,f
 		else: # Albo wszystkie beda mialy takie same
 			self.hist(dane[i],przedz,krok,norm,sig,sr,dop,wys,osX,osY,tyt,fs)
 
-def dopasowanie(funkcja,x,y,xp=1,yp=1,nx=0,ny=0,osX=0,osY=0,podp=0,r=3,fs='large',f='k.'):
+def dopasowanie(funkcja,x,y,xp=1,yp=1,nx=0,ny=0,osX=0,osY=0,fs='large',f='k.'):
 	'''Rysuje dane i dopasowuje do nich linie prosta. Wymaga py.show()
+	funkcja - funkcja do dopasowania
 	x - wartosci x, tuple/list/array - i tak zmieni sie na liste
 	y - wartosci y, tuple/list/array
 	xp,yp = jaka czescia jednostki ukladu SI jest wartosc
 	nx,ny - niepewnosci x,y (tuple/list/array o dlugosci rownej powyzszym)
 	osX - podpis osi X, str
 	osY - podpis osi Y, str
-	podp - czy podpisywac? 1,2,3,4, polozenie od lewego gornego wg wskazowek zegara
-	r - zaokraglenie wartosci w podpisach, ilosc miejsc po przecinku
-	ts - textsize'''
+	fs - textsize
+	f - format punktow na wykresie'''
 	py.errorbar(x,y,xerr=nx,yerr=ny,fmt=f) # rysuje errorbary, czyli wartosci z przedzialami ufnosci dla kazdej
 	parF,niepF = curve_fit(funkcja,x,y)
 	xlim,ylim = py.xlim(),py.ylim() # pobiera obecne max i min wartosci wyswietlanych X i Y
@@ -177,8 +177,6 @@ def dopasowanie(funkcja,x,y,xp=1,yp=1,nx=0,ny=0,osX=0,osY=0,podp=0,r=3,fs='large
 	sigma = [ np.sqrt(niepF[i,i]) for i in range(len(niepF)) ] # niepewnosci poszczegolnych wartosci
 	return parF,sigma
 	
-
-
 def niep_prad(wartosci,typ,p=1,r=3,k=True):
 	'''Oblicza niepewnosci multimetrow dla kazdej z wartosci z listy,
 	domyslne jest podanie wartosci w V/A/Ohm-ach.
