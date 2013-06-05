@@ -2,9 +2,16 @@
 
 __author__ = 'Pawel "duskglow" Chojnacki'
 __copyright__ ='Copyleft 2013 Pawel Chojnacki'
-__version__ = '0.8'
+__version__ = '0.9'
 __date__ = '07.05.2013'
 __license__ = 'GPLv3'
+
+## ROADMAP
+# Automatyczne obliczanie pochodnych z SymPy
+# Automatyczne generowanie tabel do LaTeXa
+# Automatyczne testy Chi Kwadrat dla zadanych stopni swobody
+
+
 
 import numpy as np
 # Dzieki ponizszym linijkom caly tekst generowany bedzie w LaTeXu
@@ -15,6 +22,7 @@ mpl.rcParams['text.latex.unicode'] = True
 mpl.rcParams['text.usetex'] = True
 mpl.rcParams['font.family'] = 'serif'
 import pylab as py
+from scipy.optimize import curve_fit
 
 class pomiary(object):
 	'''Klasa pomiarow zawierajaca pomiary fizyczne i odpowiadajacy im blad pomiaru, pozwala na podstawowe operacje na danych z pracowni fizycznej.'''
@@ -23,7 +31,7 @@ class pomiary(object):
 		self.d = delta	# Niepewnosc pomiaru (najmniejsza podzialka)
 
 	def __str__(self): # Aby wypisywal wartosci i delte 
-		return str(self.w),str(self.d)
+		return str(self.w)+str(self.d)
 
 	def __add__(self,b): # Dodawanie dwoch zbiorow pomiarow lub liczby
 		if type(b) == pomiary:
@@ -41,27 +49,27 @@ class pomiary(object):
 			return pomiary(self.w*b,self.d*b) # mnozymy zarowno pomiary, jak i delte
 		else:
 			raise Exception('b powinno byc liczba!')
-		
+	@property
 	def sr(self): # Srednia
 		return np.mean(self.w)
-		
+	@property	
 	def med(self): # Mediana
 		return np.median(self.w)
-	
+	@property
 	def war(self): # Wariancja
 		return np.var(self.w)
-	
+	@property
 	def sop(self): # Srednie odchylenie pomiaru, ddof=1 == N(N-1)
 		return np.std(self.w,ddof=1)
-
+	@property
 	def sos(self): # Srednie odchylenie sredniej
-		return self.sop() / len(self.w)**0.5
-		
+		return self.sop / len(self.w)**0.5
+	@property
 	def np(self): # Niepewnosc pomiaru
-		return np.sqrt(self.sop()**2 + (1./3)*self.d**2)
-		
+		return np.sqrt(self.sop**2 + (1./3)*self.d**2)
+	@property
 	def ns(self): # Niepewnosc sredniej
-		return np.sqrt(self.sos()**2 + (1./3)*self.d**2)
+		return np.sqrt(self.sos**2 + (1./3)*self.d**2)
 		
 	def hist(self,przedz=0,krok=1,norm=0,wys=0,osX=0,osY=0,sr=0,sig=0,tyt=0):
 		histogram(self.w,przedz,krok,norm,wys,osX,osY,sr,sig,tyt)
@@ -141,8 +149,8 @@ def whist(dane,przedz=0,krok=1,norm=0,sig=0,sr=0,dop=0,wys=0,osX=0,osY=0,tyt=0,f
 			self.hist(dane[i],przedz,krok,norm,sig,sr,dop,wys,osX,osY,tyt[i],fs)
 		else: # Albo wszystkie beda mialy takie same
 			self.hist(dane[i],przedz,krok,norm,sig,sr,dop,wys,osX,osY,tyt,fs)
-			
-def dop_lin(x,y,xp=1,yp=1,nx=0,ny=0,osX=0,osY=0,podp=0,r=3,fs='large'):
+
+def dopasowanie(funkcja,x,y,xp=1,yp=1,nx=0,ny=0,osX=0,osY=0,podp=0,r=3,fs='large',f='k.'):
 	'''Rysuje dane i dopasowuje do nich linie prosta. Wymaga py.show()
 	x - wartosci x, tuple/list/array - i tak zmieni sie na liste
 	y - wartosci y, tuple/list/array
@@ -153,27 +161,24 @@ def dop_lin(x,y,xp=1,yp=1,nx=0,ny=0,osX=0,osY=0,podp=0,r=3,fs='large'):
 	podp - czy podpisywac? 1,2,3,4, polozenie od lewego gornego wg wskazowek zegara
 	r - zaokraglenie wartosci w podpisach, ilosc miejsc po przecinku
 	ts - textsize'''
-	py.errorbar(x,y,xerr=nx,yerr=ny,fmt='k.') # rysuje errorbary, czyli wartosci z przedzialami ufnosci dla kazdej
-	AxB = np.polyfit(x,y,1) # dopasowuje parametry prostej (wielomianu zerowego stopnia)
+	py.errorbar(x,y,xerr=nx,yerr=ny,fmt=f) # rysuje errorbary, czyli wartosci z przedzialami ufnosci dla kazdej
+	parF,niepF = curve_fit(funkcja,x,y)
 	xlim,ylim = py.xlim(),py.ylim() # pobiera obecne max i min wartosci wyswietlanych X i Y
-	dopx = [xlim[0]] + list(x) + [xlim[1]] # przedluza wartosci X do liczenia linii, zeby wydawala sie ciagla
-	dopy = [ i*AxB[0] + AxB[1] for i in dopx] # oblicza wartosc Y dla kazdego X linii
-	py.ylim(ylim) # Upewnia sie, ze os Y sie nie zmienila
+	dopx = np.array([xlim[0]] + list(x) + [xlim[1]]) # przedluza wartosci X do liczenia linii, zeby wydawala sie ciagla
+	dopy = funkcja(dopx,*parF) # oblicza wartosc Y dla kazdego X linii
 	py.plot(dopx,dopy,color='k') # plotuje linie
-	if osX!=0: py.xlabel(osX,family='serif',size=ts) # podpis osi X
-	if osY!=0: py.ylabel(osY,family='serif',size=ts) # podpis osi Y
-	if podp!=0: # jezeli ma podpisywac
-		if podp in [1,4]: xP = xlim[0]+0.05*(xlim[1]-xlim[0]) # wybiera w ktorym rogu
-		if podp in [2,3]: xP = xlim[1]-0.45*(xlim[1]-xlim[0])
-		if podp in [1,2]: yP = ylim[1]-0.1*(ylim[1]-ylim[0])
-		if podp in [3,4]: yP = ylim[0]+0.1*(ylim[1]-ylim[0])
-		AxB = np.polyfit(x*xp,y*yp,1) # dopasowuje parametry prostej (wielomianu zerowego stopnia)
-		wektstr = 'A + Bx = '+str(round(AxB[1],r))+' + '+str(round(AxB[0],r))+'x' # tworzy podpis
-		py.text(xP,yP,wektstr,family='serif',size=ts) # i plotuje go
-	py.xticks(size=ts) # rozmiar cyfr
-	py.yticks(size=ts)
+	if osX!=0: py.xlabel(osX,family='serif',size=fs) # podpis osi X
+	if osY!=0: py.ylabel(osY,family='serif',size=fs) # podpis osi Y
+	py.xticks(size=fs) # rozmiar cyfr
+	py.yticks(size=fs)
 	py.grid(True) # siatka
-			
+	py.ylim(ylim) # Upewnia sie, ze os Y sie nie zmienila
+	py.xlim(xlim) # Upewnia sie, ze os X sie nie zmienila
+	sigma = [ np.sqrt(niepF[i,i]) for i in range(len(niepF)) ] # niepewnosci poszczegolnych wartosci
+	return parF,sigma
+	
+
+
 def niep_prad(wartosci,typ,p=1,r=3,k=True):
 	'''Oblicza niepewnosci multimetrow dla kazdej z wartosci z listy,
 	domyslne jest podanie wartosci w V/A/Ohm-ach.
